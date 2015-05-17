@@ -1,6 +1,7 @@
 package mips
 
 import (
+	"bufio"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -38,11 +39,11 @@ type token struct {
 // lexer holds the state of scanner
 type lexer struct {
 	name   string
-	input  string     // the string being scanned
-	start  int        // start position of this token
-	pos    int        // current position of this token
-	width  int        // width of last rune read from input
-	tokens chan token // channel of scanned tokens
+	r      *bufio.Reader // read input from here
+	buf    []byte        // buffer for current scanned string
+	length int           // length of buffer
+	eof    bool          // reach end of input
+	tokens chan token    // channel of scanned tokens
 }
 
 // stateFn is a state of a state machine
@@ -60,6 +61,16 @@ func (i token) String() string {
 	return fmt.Sprintf("%q", i.val)
 }
 
+// lex launches a state machine as a goruntine
+func lex(r *bufio.Reader) chan token {
+	l := &lexer{
+		r:      r,
+		tokens: make(chan token),
+	}
+	go l.run(lexInline)
+	return l.tokens
+}
+
 // run lexes the input until the state is nil
 func (l *lexer) run(initState stateFn) {
 	for state := initState; state != nil; {
@@ -68,52 +79,51 @@ func (l *lexer) run(initState stateFn) {
 	close(l.tokens)
 }
 
-// lex launches a state machine as a goruntine
-func lex(input string) chan token {
-	l := &lexer{
-		input:  input,
-		tokens: make(chan token),
-	}
-	go l.run(lexInline)
-	return l.tokens
-}
-
 // emit sends a token to channel
 func (l *lexer) emit(t tokenType) {
 	l.tokens <- token{
 		typ: t,
-		val: l.input[l.start:l.pos],
+		val: string(l.buf),
 	}
-	l.start = l.pos
+	l.buf = []byte{}
 }
 
 // next read next rune in input, increase current position
-func (l *lexer) next() (r rune) {
-	if l.pos >= len(l.input) {
-		l.width = 0
-		return eof
+func (l *lexer) next() rune {
+	r, n, _ := l.r.ReadRune()
+	if n > 0 {
+		l.buf = append(l.buf, []byte(string(r))...)
+		return r
 	}
-	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
-	l.pos += l.width
-	return
+	l.eof = true
+	return eof
 }
 
 // ignore skips over pending input before current position
 func (l *lexer) ignore() {
-	l.start = l.pos
+	l.buf = []byte{}
 }
 
 // backup steps back one rune
 // Can be called only once per call to next
 func (l *lexer) backup() {
-	l.pos -= l.width
+	if !l.eof {
+		l.r.UnreadRune()
+		_, n := utf8.DecodeLastRune(l.buf)
+		l.buf = l.buf[:len(l.buf)-n]
+	} else {
+		l.eof = false
+	}
 }
 
 // peek returns next rune in input but not consume it
-func (l *lexer) peek() (r rune) {
-	r = l.next()
-	l.backup()
-	return
+func (l *lexer) peek() rune {
+	r, _, err := l.r.ReadRune()
+	if err != nil {
+		return eof
+	}
+	l.r.UnreadRune()
+	return r
 }
 
 // accept consume next rune if it's from valid set
@@ -137,7 +147,7 @@ func (l *lexer) acceptRun(valid string) bool {
 
 // curValue returns current value
 func (l *lexer) curValue() string {
-	return l.input[l.start:l.pos]
+	return string(l.buf)
 }
 
 // errorf emit a error token and terminate the scan

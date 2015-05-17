@@ -1,6 +1,8 @@
 package mips
 
 import (
+	"bufio"
+	"bytes"
 	"log"
 	"testing"
 )
@@ -24,11 +26,13 @@ Next:
 )
 
 func TestLex(t *testing.T) {
-	ch := lex(input)
+	buf := bytes.NewBuffer([]byte(input))
+	ch := lex(bufio.NewReader(buf))
 	for token := range ch {
 		if token.typ == tokenError {
 			log.Println(token)
 			t.Fail()
 		}
+		// fmt.Printf("%s: %s\n", token.typ, token)
 	}
 }

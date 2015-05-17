@@ -1,7 +1,9 @@
 package mips
 
 import (
+	"bufio"
 	"log"
+	"strings"
 	"testing"
 )
 
@@ -91,7 +93,7 @@ Next:
 )
 
 func TestParse(t *testing.T) {
-	_, ch := parse(inputP1)
+	ch := parse(bufio.NewReader(strings.NewReader(inputP1)))
 	for item := range ch {
 		if item.typ == itemError {
 			log.Println(item.err)

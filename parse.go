@@ -1,6 +1,7 @@
 package mips
 
 import (
+	"bufio"
 	"container/list"
 	"fmt"
 	"strconv"
@@ -46,15 +47,15 @@ type parser struct {
 
 type parseFn func(*parser) parseFn
 
-func parse(input string) (*parser, <-chan parseItem) {
+func parse(r *bufio.Reader) <-chan parseItem {
 	p := &parser{
 		items:    make(chan parseItem),
-		tokens:   lex(input),
+		tokens:   lex(r),
 		itemList: list.New(),
 		labels:   make(map[string]parseItem),
 	}
 	go p.run(parseStart)
-	return p, p.pseudoFilter(p.labelFilter(p.items))
+	return p.pseudoFilter(p.labelFilter(p.items))
 }
 
 func (p *parser) run(initState parseFn) {

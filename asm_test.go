@@ -1,8 +1,10 @@
 package mips
 
 import (
+	"bufio"
 	"bytes"
 	"log"
+	"strings"
 	"testing"
 )
 
@@ -23,7 +25,8 @@ func TestAssemble(t *testing.T) {
 		[]byte{0x20, 0x80, 0x88, 0x00, 0x00, 0x00, 0x10, 0x8D},
 	}
 	for i, in := range input {
-		b, err := Assemble(in)
+		a := NewAssembler(bufio.NewReader(strings.NewReader(in)))
+		b, err := a.Assemble()
 		if err != nil {
 			log.Println(err)
 			t.Fail()
