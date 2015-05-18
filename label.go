@@ -78,7 +78,11 @@ func (p *parser) replaceLabel() <-chan parseItem {
 			case itemInst:
 				if item.label != "" {
 					if l, ok := p.labels[item.label]; ok {
-						item.imme = (l.address - item.address) >> 2
+						if instructionTable[item.instruction].typ == "J" {
+							item.imme = l.address >> 2
+						} else {
+							item.imme = (l.address - item.address) >> 2
+						}
 					} else {
 						result <- parseItem{
 							typ: itemError,
@@ -93,7 +97,7 @@ func (p *parser) replaceLabel() <-chan parseItem {
 				switch item.directive {
 				case "globl":
 					if l, ok := p.labels[item.label]; ok {
-						p.entryAddr = l.address
+						item.address = l.address
 					} else {
 						result <- parseItem{
 							typ: itemError,

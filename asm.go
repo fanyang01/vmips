@@ -1,24 +1,44 @@
 package mips
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 )
 
-func assemble(items <-chan parseItem) (b []byte, err error) {
+type Assembler struct {
+	r           *bufio.Reader
+	items       <-chan parseItem
+	entryOffset int
+}
+
+func NewAssembler(r io.Reader) *Assembler {
+	return &Assembler{
+		r: bufio.NewReader(r),
+	}
+}
+
+func (a *Assembler) Assemble() (b []byte, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("runtime panic: %v", r)
 		}
 	}()
+	a.items = parse(a.r)
+	b, err = a.assemble()
+	return
+}
+
+func (a *Assembler) assemble() ([]byte, error) {
 	var section **bytes.Buffer
 	textSection := new(bytes.Buffer)
 	dataSection := new(bytes.Buffer)
 	section = &textSection
 LOOP:
-	for item := range items {
+	for item := range a.items {
 		switch item.typ {
 		case itemError:
 			return nil, errors.New(item.err)
@@ -36,7 +56,7 @@ LOOP:
 			case "data":
 				section = &dataSection
 			case "globl":
-				// TODO
+				a.entryOffset = item.address - TEXT_ADDRESS
 			default:
 				_, err := (*section).Write(asmDir(item))
 				if err != nil {
@@ -45,9 +65,11 @@ LOOP:
 			}
 		}
 	}
-	b = textSection.Bytes()
+	b := []byte(fmt.Sprintf("text:%d,data:%d,main:%d\n",
+		0, textSection.Len(), a.entryOffset))
+	b = append(b, textSection.Bytes()...)
 	b = append(b, dataSection.Bytes()...)
-	return
+	return b, nil
 }
 
 func asmInst(item parseItem) []byte {

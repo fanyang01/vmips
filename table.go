@@ -411,10 +411,23 @@ var (
 		"gp", "sp", "fp", "ra",
 	}
 	registerTable = make(map[string]int)
+	// opcode of r instrucions is 0
+	// map their function code to their name
+	rInstructions = make(map[int]string)
+	// map their opcode to their name
+	ijInstructions = make(map[int]string)
 )
 
 func init() {
 	for i, r := range registerNames {
 		registerTable[r] = i
+	}
+	for name, inst := range instructionTable {
+		switch inst.typ {
+		case "R":
+			rInstructions[inst.funct] = name
+		case "I", "J":
+			ijInstructions[inst.opcode] = name
+		}
 	}
 }

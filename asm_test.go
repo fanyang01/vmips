@@ -1,7 +1,6 @@
 package mips
 
 import (
-	"bufio"
 	"bytes"
 	"log"
 	"strings"
@@ -16,23 +15,27 @@ func TestAssemble(t *testing.T) {
 		// 100011 01000 10000 0000 0000 0000 0000
 		// 0x8D100000
 		"lw $s0, 0($t0)",
-		`add $s0, $a0, $t0
-		lw $s0, 0($t0)`,
+		`.globl main
+		add $s0, $a0, $t0
+		main:
+		lw $s0, 0($t0)
+		.data
+		.ascii "hello, world"`,
 	}
 	expectedResult := [][]byte{
-		[]byte{0x20, 0x80, 0x88, 0x00},
-		[]byte{0x00, 0x00, 0x10, 0x8D},
-		[]byte{0x20, 0x80, 0x88, 0x00, 0x00, 0x00, 0x10, 0x8D},
+		[]byte("text:0,data:4,main:0\n\x20\x80\x88\x00"),
+		[]byte("text:0,data:4,main:0\n\x00\x00\x10\x8d"),
+		[]byte("text:0,data:8,main:4\n\x20\x80\x88\x00\x00\x00\x10\x8dhello, world"),
 	}
 	for i, in := range input {
-		a := NewAssembler(bufio.NewReader(strings.NewReader(in)))
+		a := NewAssembler(strings.NewReader(in))
 		b, err := a.Assemble()
 		if err != nil {
 			log.Println(err)
 			t.Fail()
 		}
 		if !bytes.Equal(b, expectedResult[i]) {
-			log.Printf("expect % x, got % x\n", expectedResult[i], b)
+			log.Printf("expect %q, got %q\n", string(expectedResult[i]), string(b))
 			t.Fail()
 		}
 	}
