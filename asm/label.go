@@ -1,4 +1,4 @@
-package mips
+package asm
 
 import "fmt"
 
