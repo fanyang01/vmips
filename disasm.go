@@ -1,4 +1,4 @@
-package asm
+package mips
 
 import (
 	"bufio"
@@ -24,12 +24,29 @@ type Disassembler struct {
 	eof        bool
 }
 
+// Disassemble disassemble each 4 bytes into an instruction
+func Disassemble(raw []byte) ([]byte, error) {
+	var result []byte
+	for i := 0; i+4 <= len(raw); i += 4 {
+		s, err := disasm(raw[i : i+4])
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, s...)
+		result = append(result, '\n')
+	}
+	return bytes.TrimSpace(result), nil
+}
+
+// NewDisasssembler creates a disassembler to disassemble
+// object files assembled by this package
 func NewDisassembler(r io.Reader) *Disassembler {
 	return &Disassembler{
 		r: bufio.NewReader(r),
 	}
 }
 
+// Disassemble starts the disassembler
 func (d *Disassembler) Disassemble() ([]byte, error) {
 	err := d.parseHeader()
 	if err != nil {

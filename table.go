@@ -1,4 +1,4 @@
-package asm
+package mips
 
 /*
 instruction format:

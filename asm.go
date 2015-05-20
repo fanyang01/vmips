@@ -1,4 +1,4 @@
-package asm
+package mips
 
 import (
 	"bufio"
@@ -13,6 +13,30 @@ type Assembler struct {
 	r           *bufio.Reader
 	items       <-chan parseItem
 	entryOffset int
+}
+
+// Assemble only assembles instructions
+func Assemble(s []byte) ([]byte, error) {
+	input := bytes.NewBuffer(s)
+	items := parse(bufio.NewReader(input))
+	buf := new(bytes.Buffer)
+LOOP:
+	for item := range items {
+		switch item.typ {
+		case itemError:
+			return nil, errors.New(item.err)
+		case itemEOF:
+			break LOOP
+		case itemInst:
+			_, err := buf.Write(asmInst(item))
+			if err != nil {
+				return nil, err
+			}
+		case itemDir:
+			return nil, errors.New("not support directive")
+		}
+	}
+	return buf.Bytes(), nil
 }
 
 func NewAssembler(r io.Reader) *Assembler {

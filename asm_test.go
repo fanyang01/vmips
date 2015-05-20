@@ -1,4 +1,4 @@
-package asm
+package mips
 
 import (
 	"bytes"
@@ -22,10 +22,18 @@ func TestAssemble(t *testing.T) {
 		.data
 		.ascii "hello, world"`,
 	}
+	input1 := []string{
+		"add $s0, $a0, $t0",
+		"lw $s0, 0($t0)",
+	}
 	expectedResult := [][]byte{
 		[]byte("text:0,data:4,main:0\n\x20\x80\x88\x00"),
 		[]byte("text:0,data:4,main:0\n\x00\x00\x10\x8d"),
 		[]byte("text:0,data:8,main:4\n\x20\x80\x88\x00\x00\x00\x10\x8dhello, world"),
+	}
+	expectedResult1 := [][]byte{
+		[]byte("\x20\x80\x88\x00"),
+		[]byte("\x00\x00\x10\x8d"),
 	}
 	for i, in := range input {
 		a := NewAssembler(strings.NewReader(in))
@@ -35,6 +43,17 @@ func TestAssemble(t *testing.T) {
 			t.Fail()
 		}
 		if !bytes.Equal(b, expectedResult[i]) {
+			log.Printf("expect %q, got %q\n", string(expectedResult[i]), string(b))
+			t.Fail()
+		}
+	}
+	for i, in := range input1 {
+		b, err := Assemble([]byte(in))
+		if err != nil {
+			log.Println(err)
+			t.Fail()
+		}
+		if !bytes.Equal(b, expectedResult1[i]) {
 			log.Printf("expect %q, got %q\n", string(expectedResult[i]), string(b))
 			t.Fail()
 		}

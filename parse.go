@@ -1,4 +1,4 @@
-package asm
+package mips
 
 import (
 	"bufio"
@@ -17,9 +17,6 @@ const (
 	itemInst  // instruction
 	itemLabel // label
 	itemDir   // directive
-	// Address layout
-	TEXT_ADDRESS = 0x8000000
-	DATA_ADDRESS = 0x8100000
 )
 
 // parseItem can be a instruction or a label
