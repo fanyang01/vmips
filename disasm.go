@@ -172,9 +172,9 @@ func disasm(s []byte) ([]byte, error) {
 			case fmtShamt:
 				token = fmt.Sprintf("%d", (raw>>6)&0x1F)
 			case fmtImmediate:
-				token = fmt.Sprintf("%d", raw&0xFFFF)
+				token = fmt.Sprintf("%d", int16(raw&0xFFFF))
 			case fmtAddress:
-				token = fmt.Sprintf("%#v", raw&0x3FFFFFF)
+				token = fmt.Sprintf("%#x", raw&0x3FFFFFF)
 			}
 			j++
 		case inst.syntax[i]&argAddr != 0:
@@ -191,7 +191,7 @@ func disasm(s []byte) ([]byte, error) {
 			if inst.formats[j] != fmtImmediate {
 				panic("something wrong...")
 			}
-			token = fmt.Sprintf("%d($%s)", raw&0xFFFF, reg)
+			token = fmt.Sprintf("%d($%s)", int16(raw&0xFFFF), reg)
 			j++
 		}
 		args = append(args, token)

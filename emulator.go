@@ -22,6 +22,7 @@ const (
 // Emulator runs machine code virtually
 type Emulator struct {
 	machine *Machine
+	running bool
 	inst    chan execInst
 	next    chan int
 	exit    chan ExitStatus
@@ -40,7 +41,7 @@ func NewEmulator() *Emulator {
 	return &Emulator{
 		machine: NewMachine(),
 		inst:    make(chan execInst),
-		next:    make(chan int),
+		next:    make(chan int, 2),
 		exit:    make(chan ExitStatus),
 		err:     make(chan error),
 	}
@@ -68,17 +69,26 @@ func (e *Emulator) Run() {
 		}
 	}()
 	e.next <- 1
+	e.running = true
 }
 
 func (e *Emulator) Wait() error {
-	status := <-e.exit
-	switch status {
-	case EXIT_ERROR:
-		return <-e.err
-	case EXIT_NORMAL, EXIT_EOF:
-		return nil
-	default:
-		return nil
+	if !e.running {
+		return errors.New("Program is not running")
+	}
+	select {
+	case status := <-e.exit:
+		e.running = false
+		switch status {
+		case EXIT_ERROR:
+			return <-e.err
+		case EXIT_NORMAL, EXIT_EOF:
+			return nil
+		default:
+			return nil
+		}
+	case err := <-e.err:
+		return err
 	}
 }
 
@@ -92,17 +102,31 @@ func (e *Emulator) LoadAndStart(raw []byte) error {
 }
 
 func (e *Emulator) Start() {
-	go func() {
-		for {
-			e.step()
-		}
-	}()
+	e.running = true
 	e.next <- 1
 }
 
-func (e *Emulator) Step() {
-	<-e.next
-	e.fetch()
+func (e *Emulator) Step() error {
+	if !e.running {
+		return errors.New("Program is not running")
+	}
+	go e.step()
+	select {
+	case status := <-e.exit:
+		e.running = false
+		switch status {
+		case EXIT_NORMAL, EXIT_EOF, EXIT_INT:
+			return errors.New("Program exited, exit status: " +
+				status.String())
+		case EXIT_ERROR:
+			return <-e.err
+		default:
+			panic("something wrong...")
+		}
+	case <-e.next:
+		e.fetch()
+		return nil
+	}
 }
 
 func (e *Emulator) Exit() {
@@ -130,6 +154,39 @@ func (e *Emulator) step() {
 		e.machine.r.PC = e.machine.r.PC + 4
 	}
 	e.next <- 1
+}
+
+func (e *Emulator) fetch() {
+	defer func() {
+		if err := recover(); err != nil {
+			e.exit <- EXIT_ERROR
+			e.err <- fmt.Errorf("%v", err)
+		}
+	}()
+	s, err := e.fetchRaw(1)
+	if err != nil {
+		panic(err)
+	}
+	inst, err := resolve(s)
+	if err != nil {
+		panic(err)
+	}
+	e.inst <- *inst
+}
+
+func (e *Emulator) fetchRaw(n int) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	for i := 0; i < n; i++ {
+		raw, err := e.machine.m.readWord(e.machine.r.PC + i<<2)
+		if err != nil {
+			return nil, err
+		}
+		err = binary.Write(buf, binary.LittleEndian, uint32(raw))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
 }
 
 // StartOnline loads emulator with empty code
@@ -267,7 +324,7 @@ func resolve(s []byte) (*execInst, error) {
 			case fmtShamt:
 				arg = int((raw >> 6) & 0x1F)
 			case fmtImmediate:
-				arg = int(raw & 0xFFFF)
+				arg = int(int16(raw & (0xFFFF)))
 			case fmtAddress:
 				arg = int(raw & 0x3FFFFFF)
 			}
@@ -288,7 +345,7 @@ func resolve(s []byte) (*execInst, error) {
 			if inst.formats[j] != fmtImmediate {
 				panic("something wrong...")
 			}
-			args = append(args, int(raw&0xFFFF))
+			args = append(args, int(int16(raw&0xFFFF)))
 			j++
 		}
 		i++
@@ -301,25 +358,32 @@ func resolve(s []byte) (*execInst, error) {
 	}, nil
 }
 
-func (e *Emulator) fetch() {
-	// defer func() {
-	// 	if err := recover(); err != nil {
-	// 		e.exit <- EXIT_ERROR
-	// 		e.err <- fmt.Errorf("%v", err)
-	// 	}
-	// }()
-	i, err := e.machine.m.readWord(e.machine.r.PC)
+func (e *Emulator) FetchSource(n int) ([]byte, error) {
+	s, err := e.fetchRaw(n)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.LittleEndian, uint32(i))
-	if err != nil {
-		panic(err)
+	return Disassemble(s)
+}
+
+func (e *Emulator) ShowMemory(addr int) (int, error) {
+	return e.machine.m.readWord(addr)
+}
+
+func (e *Emulator) ShowReg(reg string) (int, error) {
+	switch reg {
+	case "PC":
+		return e.machine.r.PC, nil
+	case "LO":
+		return e.machine.r.LO, nil
+	case "HI":
+		return e.machine.r.HI, nil
+	default:
+		var id int
+		var ok bool
+		if id, ok = registerTable[reg]; !ok {
+			return 0, errors.New("read register " + reg + ":no such register")
+		}
+		return e.machine.r.read(id), nil
 	}
-	inst, err := resolve(buf.Bytes())
-	if err != nil {
-		panic(err)
-	}
-	e.inst <- *inst
 }

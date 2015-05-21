@@ -156,14 +156,14 @@ var (
 			}
 		},
 		"j": func(m *Machine, args ...int) {
-			m.r.PC = (m.r.PC & 0xF00000000) | ((args[0] << 2) & 0x0FFFFFFF)
+			m.r.PC = ((m.r.PC + 4) & 0xF0000000) | ((args[0] << 2) & 0x0FFFFFFF)
 		},
 		"jr": func(m *Machine, args ...int) {
 			m.r.PC = m.r.read(args[0])
 		},
 		"jal": func(m *Machine, args ...int) {
 			m.r.write(31, m.r.PC+4)
-			m.r.PC = (m.r.PC & 0xF00000000) | ((args[0] << 2) & 0x0FFFFFFF)
+			m.r.PC = ((m.r.PC + 4) & 0xF0000000) | ((args[0] << 2) & 0x0FFFFFFF)
 		},
 		"syscall": systemCall,
 	}

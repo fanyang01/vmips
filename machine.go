@@ -209,6 +209,6 @@ func (m *virtualMemory) transfer(virtual int) (int, addrSeg, error) {
 		}
 		return actual, stackSegment, nil
 	default:
-		return 0, 0, errors.New("segmentfault")
+		return 0, 0, errors.New("Segmentfault")
 	}
 }

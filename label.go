@@ -81,7 +81,7 @@ func (p *parser) replaceLabel() <-chan parseItem {
 						if instructionTable[item.instruction].typ == "J" {
 							item.imme = l.address >> 2
 						} else {
-							item.imme = (l.address - item.address) >> 2
+							item.imme = (l.address - (item.address + 4)) >> 2
 						}
 					} else {
 						result <- parseItem{

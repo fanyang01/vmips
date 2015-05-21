@@ -121,12 +121,12 @@ func asmInst(item parseItem) []byte {
 				panic(fmt.Sprintf("immediate number %d out of range",
 					item.imme))
 			}
-			raw |= item.imme
+			raw |= (item.imme & 0xFFFF)
 		case fmtAddress:
 			if item.imme >= 1<<26 || item.imme < 0 {
 				panic(fmt.Sprintf("immediate number %d out of range", item.imme))
 			}
-			raw |= item.imme
+			raw |= (item.imme & 0x3FFFFFF)
 		default:
 			// shouldn't get here
 		}
