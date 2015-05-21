@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/fanyang01/mips"
@@ -30,6 +31,7 @@ var (
 	asmRunM  = flag.Bool("R", false, "Assemble and run")
 	stepRunM = flag.Bool("s", false, "Step run")
 	outFile  = flag.String("o", "a.out", "Output file")
+	logger   = log.New(os.Stderr, "", 0)
 )
 
 func main() {
@@ -145,7 +147,7 @@ func parseMode() Mode {
 
 func checkFatalErr(err error) {
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
