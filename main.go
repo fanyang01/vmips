@@ -20,8 +20,6 @@ const (
 	runMode
 	asmRunMode
 	stepRunMode
-	// Usage
-	usage = `Usage: -(a | d | r | R | s) [-o name] file`
 )
 
 var (
@@ -74,17 +72,11 @@ func disasmFile(filename string) {
 	checkFatalErr(err)
 	defer f.Close()
 
-	out, err := os.OpenFile(*outFile, os.O_WRONLY|os.O_CREATE, 0644)
-	checkFatalErr(err)
-	defer out.Close()
-	w := bufio.NewWriter(out)
-	defer w.Flush()
-
 	disassembler := mips.NewDisassembler(f)
 	s, err := disassembler.Disassemble()
 	checkFatalErr(err)
-	_, err = w.Write(s)
-	checkFatalErr(err)
+
+	fmt.Println(string(s))
 }
 
 func runFile(filename string) {
@@ -133,14 +125,17 @@ func parseMode() Mode {
 	if *stepRunM {
 		mode |= stepRunMode
 	}
+	// If no flag is specified, enter assembler mode
+	if mode == noMode {
+		mode = asmMode
+	}
 	switch mode {
 	case asmMode, disasmMode, runMode, asmRunMode, stepRunMode:
 		if flag.NArg() < 1 {
-			fmt.Fprintln(os.Stderr, "Please specify a file to process")
-			os.Exit(1)
+			logger.Fatal("Please specify a file to process")
 		}
 	default:
-		printUsage()
+		flag.PrintDefaults()
 	}
 	return mode
 }
@@ -150,12 +145,6 @@ func checkFatalErr(err error) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-}
-
-func printUsage() {
-	fmt.Fprintf(os.Stderr, "%s\n", usage)
-	flag.PrintDefaults()
-	os.Exit(1)
 }
 
 func fatalf(format string, args ...interface{}) {

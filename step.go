@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,6 +9,17 @@ import (
 
 	"github.com/fanyang01/mips"
 )
+import "unsafe"
+
+/*
+#cgo LDFLAGS: -lreadline -lhistory
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <readline/readline.h>
+#include <readline/history.h>
+*/
+import "C"
 
 type Cmd int
 
@@ -21,11 +31,21 @@ const (
 	cmdMemory
 	cmdReg
 	cmdRun
+	cmdHelp
 	cmdQuit
+	helpMessage = `List of commands:
+s, step   [n]: Run n(default 1) step(s)
+l, list   [n]: List n(default 1) instruction(s)
+m, mem   addr: Show 32 bits starting at addr
+r, reg [name]: Show content of register(s), default to all
+run: Run to end
+h, help: Show this help message`
 )
 
 var (
-	registers = []string{
+	prompt     = C.CString("\033[1;36m(mips)\033[0m ")
+	maxHistory = C.int(50)
+	registers  = []string{
 		"zero", "at",
 		"v0", "v1",
 		"a0", "a1", "a2", "a3",
@@ -52,8 +72,10 @@ func stepRun(filename string) {
 	checkFatalErr(err)
 
 	var cache *Command
+
+	C.stifle_history(maxHistory)
+	fmt.Fprintln(os.Stderr, `For help, type "help".`)
 	for {
-		fmt.Printf("(mips) ")
 		cmd := scanCommand()
 	LABEL:
 		switch cmd.cmd {
@@ -66,6 +88,8 @@ func stepRun(filename string) {
 			}
 			fmt.Fprintln(os.Stderr, "Please specify a command")
 			continue
+		case cmdHelp:
+			fmt.Fprintln(os.Stderr, helpMessage)
 		case cmdListSrc:
 			listSrc(em, cmd.args.([]int))
 		case cmdStep:
@@ -96,7 +120,9 @@ func step(em *mips.Emulator, args []int) {
 	for i := 0; i < count; i++ {
 		s, err := em.FetchSource(1)
 		checkErr(err)
-		fmt.Println(string(s))
+		addr, err := em.ReadReg("PC")
+		checkErr(err)
+		fmt.Printf("%#x: %s\n", addr, s)
 		err = em.Step()
 		checkErr(err)
 	}
@@ -112,9 +138,9 @@ func showMemory(em *mips.Emulator, args []int) {
 		panic("Please specify at least one address")
 	}
 	for _, addr := range args {
-		word, err := em.ShowMemory(addr)
+		word, err := em.ReadMemory(addr)
 		checkErr(err)
-		fmt.Printf("%#0x: %#x(%d)\n", addr, word, word)
+		fmt.Printf("%#x: %#x(%d)\n", addr, word, word)
 	}
 }
 
@@ -126,16 +152,16 @@ func showReg(em *mips.Emulator, args []string) {
 	}()
 	if len(args) == 0 {
 		for _, reg := range registers {
-			word, err := em.ShowReg(reg)
+			word, err := em.ReadReg(reg)
 			checkErr(err)
-			fmt.Printf("%s:\t%#0x(%d)\n", reg, word, word)
+			fmt.Printf("%s: %#x(%d)\n", reg, word, word)
 		}
 		return
 	}
 	for _, reg := range args {
-		word, err := em.ShowReg(reg)
+		word, err := em.ReadReg(reg)
 		checkErr(err)
-		fmt.Printf("%s:\t%#0x(%d)\n", reg, word, word)
+		fmt.Printf("%s: %#x(%d)\n", reg, word, word)
 	}
 }
 
@@ -158,8 +184,13 @@ func listSrc(em *mips.Emulator, args []int) {
 	}
 	s, err := em.FetchSource(count)
 	checkErr(err)
-	fmt.Println(string(s))
+	lines := strings.Split(string(s), "\n")
+	addr, err := em.ReadReg("PC")
 	checkErr(err)
+
+	for i, line := range lines {
+		fmt.Printf("%#x: %s\n", addr+i<<2, line)
+	}
 }
 
 func scanCommand() (cmd Command) {
@@ -170,15 +201,18 @@ func scanCommand() (cmd Command) {
 		}
 	}()
 
-	reader := bufio.NewReader(os.Stdin)
-	s, err := reader.ReadString('\n')
-	checkErr(err)
+	p := C.readline(prompt)
+	s := C.GoString(p)
+	if p != nil {
+		C.free(unsafe.Pointer(p))
+	}
 	s = strings.TrimSpace(s)
 	tokens := strings.Fields(s)
 	if len(tokens) == 0 {
 		cmd.cmd = cmdEmpty
 		return
 	}
+	C.add_history(C.CString(s))
 	switch tokens[0] {
 	case "l", "list":
 		cmd.cmd = cmdListSrc
@@ -190,6 +224,8 @@ func scanCommand() (cmd Command) {
 		cmd.cmd = cmdMemory
 	case "run":
 		cmd.cmd = cmdRun
+	case "h", "help":
+		cmd.cmd = cmdHelp
 	case "q", "quit":
 		cmd.cmd = cmdQuit
 	default:
