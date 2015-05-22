@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/fanyang01/mips"
+	"github.com/fanyang01/vmips/mips"
 )
 
 type Mode int

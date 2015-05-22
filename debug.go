@@ -20,7 +20,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/fanyang01/mips"
+	"github.com/fanyang01/vmips/mips"
 )
 
 type Cmd int
