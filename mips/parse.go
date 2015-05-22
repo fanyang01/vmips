@@ -19,7 +19,7 @@ const (
 	itemDir   // directive
 )
 
-// parseItem can be a instruction or a label
+// parseItem can be instruction, label, directive or error
 type parseItem struct {
 	typ         itemType
 	instruction string

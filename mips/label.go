@@ -63,6 +63,7 @@ LOOP:
 				*addr += 4
 			}
 		case itemError:
+			p.itemList.Init()
 			p.itemList.PushBack(item)
 			break LOOP
 		}
