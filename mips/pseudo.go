@@ -79,7 +79,7 @@ func (p *parser) translate(i parseItem, result chan<- parseItem) {
 			typ:         itemInst,
 			instruction: "bne",
 			registers:   []string{"$at", "$zero"},
-			imme:        i.imme,
+			imme:        i.imme - 1,
 		}
 	case "blt":
 		result <- parseItem{
@@ -91,7 +91,7 @@ func (p *parser) translate(i parseItem, result chan<- parseItem) {
 			typ:         itemInst,
 			instruction: "bne",
 			registers:   []string{"$at", "$zero"},
-			imme:        i.imme,
+			imme:        i.imme - 1,
 		}
 	case "bge":
 		result <- parseItem{
@@ -103,7 +103,7 @@ func (p *parser) translate(i parseItem, result chan<- parseItem) {
 			typ:         itemInst,
 			instruction: "beq",
 			registers:   []string{"$at", "$zero"},
-			imme:        i.imme,
+			imme:        i.imme - 1,
 		}
 	case "ble":
 		result <- parseItem{
@@ -115,7 +115,7 @@ func (p *parser) translate(i parseItem, result chan<- parseItem) {
 			typ:         itemInst,
 			instruction: "beq",
 			registers:   []string{"$at", "$zero"},
-			imme:        i.imme,
+			imme:        i.imme - 1,
 		}
 	case "bgtu":
 		result <- parseItem{
@@ -127,7 +127,7 @@ func (p *parser) translate(i parseItem, result chan<- parseItem) {
 			typ:         itemInst,
 			instruction: "bne",
 			registers:   []string{"$at", "$zero"},
-			imme:        i.imme,
+			imme:        i.imme - 1,
 		}
 	case "bgtz":
 		result <- parseItem{
@@ -139,7 +139,7 @@ func (p *parser) translate(i parseItem, result chan<- parseItem) {
 			typ:         itemInst,
 			instruction: "bne",
 			registers:   []string{"$at", "$zero"},
-			imme:        i.imme,
+			imme:        i.imme - 1,
 		}
 	case "beqz":
 		result <- parseItem{

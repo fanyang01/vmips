@@ -206,6 +206,14 @@ func systemCall(m *Machine, args ...int) {
 		checkInstErr(err)
 	case 10:
 		m.exit = true
+	case 11:
+		ch := m.r.read(a0)
+		fmt.Printf("%c", ch)
+	case 12:
+		var ch rune
+		_, err := fmt.Scanf("%c\n", &ch)
+		checkInstErr(err)
+		m.r.write(v0, int(ch))
 	default:
 	}
 }

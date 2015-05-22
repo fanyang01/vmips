@@ -13,6 +13,7 @@ func (p *parser) readAllLabel(items <-chan parseItem) {
 	textAddress := TEXT_ADDRESS
 	dataAddress := DATA_ADDRESS
 	addr := &textAddress
+LOOP:
 	for item := range items {
 		item.address = *addr
 		switch item.typ {
@@ -61,6 +62,9 @@ func (p *parser) readAllLabel(items <-chan parseItem) {
 			} else {
 				*addr += 4
 			}
+		case itemError:
+			p.itemList.PushBack(item)
+			break LOOP
 		}
 		p.itemList.PushBack(item)
 	}
@@ -108,6 +112,9 @@ func (p *parser) replaceLabel() <-chan parseItem {
 					}
 				}
 				result <- item
+			case itemError:
+				result <- item
+				break LOOP
 			default:
 				result <- item
 			}

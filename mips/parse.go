@@ -227,7 +227,7 @@ func (p *parser) parseDir(dir string) parseFn {
 			case tokenByte:
 				data = append(data, int(t.val[0]))
 			case tokenInteger:
-				i, err := strconv.ParseInt(t.val, 0, width)
+				i, err := strconv.ParseUint(t.val, 0, width)
 				if err != nil {
 					return p.errorf("parse %q: %s", t.val, err.Error())
 				}

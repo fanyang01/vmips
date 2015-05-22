@@ -44,8 +44,9 @@ x addr-list: Print words at listed addresses
 i addr [N]: Print N instructions after addr
 r, reg [name-list]: Show content of register(s)
 run: Run to end
-rs, restart: Restart the program  
-h, help: Show this help message`
+rs, restart: Restart the program
+h, help: Show this help message
+q, quit: Quit`
 	welcomeMessage = "\033[1;33m" + `
  ________________________
 /                        \
