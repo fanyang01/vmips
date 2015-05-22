@@ -43,7 +43,7 @@ func NewEmulator() *Emulator {
 		inst:    make(chan execInst),
 		next:    make(chan int, 2),
 		exit:    make(chan ExitStatus),
-		err:     make(chan error),
+		err:     make(chan error, 2),
 	}
 }
 
@@ -359,6 +359,9 @@ func resolve(s []byte) (*execInst, error) {
 }
 
 func (e *Emulator) FetchSource(n int) ([]byte, error) {
+	if !e.running {
+		return nil, errors.New("Program is not running")
+	}
 	s, err := e.fetchRaw(n)
 	if err != nil {
 		return nil, err
@@ -366,11 +369,11 @@ func (e *Emulator) FetchSource(n int) ([]byte, error) {
 	return Disassemble(s)
 }
 
-func (e *Emulator) ShowMemory(addr int) (int, error) {
+func (e *Emulator) ReadMemory(addr int) (int, error) {
 	return e.machine.m.readWord(addr)
 }
 
-func (e *Emulator) ShowReg(reg string) (int, error) {
+func (e *Emulator) ReadReg(reg string) (int, error) {
 	switch reg {
 	case "PC":
 		return e.machine.r.PC, nil
@@ -382,7 +385,7 @@ func (e *Emulator) ShowReg(reg string) (int, error) {
 		var id int
 		var ok bool
 		if id, ok = registerTable[reg]; !ok {
-			return 0, errors.New("read register " + reg + ":no such register")
+			return 0, errors.New("read register '" + reg + "':no such register")
 		}
 		return e.machine.r.read(id), nil
 	}
