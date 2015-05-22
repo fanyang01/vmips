@@ -1,16 +1,5 @@
 package main
 
-import (
-	"fmt"
-	"io/ioutil"
-	"os"
-	"strconv"
-	"strings"
-
-	"github.com/fanyang01/mips"
-)
-import "unsafe"
-
 /*
 #cgo LDFLAGS: -lreadline -lhistory
 
@@ -21,6 +10,19 @@ import "unsafe"
 */
 import "C"
 
+import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
+	"unsafe"
+
+	"github.com/fanyang01/mips"
+)
+
 type Cmd int
 
 const (
@@ -28,18 +30,35 @@ const (
 	cmdError Cmd = 1 << iota
 	cmdStep
 	cmdListSrc
-	cmdMemory
+	cmdWord
+	cmdInst
 	cmdReg
 	cmdRun
+	cmdRestart
 	cmdHelp
 	cmdQuit
 	helpMessage = `List of commands:
-s, step   [n]: Run n(default 1) step(s)
-l, list   [n]: List n(default 1) instruction(s)
-m, mem   addr: Show 32 bits starting at addr
-r, reg [name]: Show content of register(s), default to all
+s, step [N]: Step N times
+l, list [N]: List N instructions
+x addr-list: Print words at listed addresses
+i addr [N]: Print N instructions after addr
+r, reg [name-list]: Show content of register(s)
 run: Run to end
+rs, restart: Restart the program  
 h, help: Show this help message`
+	welcomeMessage = "\033[1;33m" + `
+ ________________________
+/                        \
+|      MIPS is fun!      |
+\                        /
+ ------------------------
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
+
+` + "\033[0m" + `For help, type "help".`
 )
 
 var (
@@ -63,18 +82,18 @@ type Command struct {
 	args interface{}
 }
 
-func stepRun(filename string) {
-	s, err := ioutil.ReadFile(filename)
+func debug(filename string) {
+	code, err := ioutil.ReadFile(filename)
 	checkFatalErr(err)
 
 	em := mips.NewEmulator()
-	err = em.LoadAndStart(s)
+	err = em.LoadAndStart(code)
 	checkFatalErr(err)
 
 	var cache *Command
 
 	C.stifle_history(maxHistory)
-	fmt.Fprintln(os.Stderr, `For help, type "help".`)
+	fmt.Println(welcomeMessage)
 	for {
 		cmd := scanCommand()
 	LABEL:
@@ -90,12 +109,19 @@ func stepRun(filename string) {
 			continue
 		case cmdHelp:
 			fmt.Fprintln(os.Stderr, helpMessage)
+		case cmdRestart:
+			em = mips.NewEmulator()
+			err = em.LoadAndStart(code)
+			checkFatalErr(err)
+			cache = nil
 		case cmdListSrc:
 			listSrc(em, cmd.args.([]int))
 		case cmdStep:
 			step(em, cmd.args.([]int))
-		case cmdMemory:
-			showMemory(em, cmd.args.([]int))
+		case cmdWord:
+			showWord(em, cmd.args.([]int))
+		case cmdInst:
+			showInst(em, cmd.args.([]int))
 		case cmdReg:
 			showReg(em, cmd.args.([]string))
 		case cmdRun:
@@ -122,13 +148,13 @@ func step(em *mips.Emulator, args []int) {
 		checkErr(err)
 		addr, err := em.ReadReg("PC")
 		checkErr(err)
-		fmt.Printf("%#x: %s\n", addr, s)
 		err = em.Step()
 		checkErr(err)
+		fmt.Printf("%#x: %s\n", addr, s)
 	}
 }
 
-func showMemory(em *mips.Emulator, args []int) {
+func showWord(em *mips.Emulator, args []int) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Println(err)
@@ -141,6 +167,36 @@ func showMemory(em *mips.Emulator, args []int) {
 		word, err := em.ReadMemory(addr)
 		checkErr(err)
 		fmt.Printf("%#x: %#x(%d)\n", addr, word, word)
+	}
+}
+
+func showInst(em *mips.Emulator, args []int) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Println(err)
+		}
+	}()
+	if len(args) < 1 {
+		panic("Please specify at least one address")
+	}
+	addr := args[0]
+	n := 1
+	if len(args) > 1 {
+		n = args[1]
+	}
+	for i := 0; i < n; i++ {
+		word, err := em.ReadMemory(addr)
+		checkErr(err)
+		buf := new(bytes.Buffer)
+		err = binary.Write(buf, binary.LittleEndian, uint32(word))
+		checkErr(err)
+		s, err := mips.Disassemble(buf.Bytes())
+		checkErr(err)
+		buf.Reset()
+		err = binary.Write(buf, binary.BigEndian, uint32(word))
+		checkErr(err)
+		fmt.Printf("%#x: % x    %s\n", addr, buf.Bytes(), string(s))
+		addr += 4
 	}
 }
 
@@ -220,10 +276,14 @@ func scanCommand() (cmd Command) {
 		cmd.cmd = cmdStep
 	case "r", "reg":
 		cmd.cmd = cmdReg
-	case "m", "mem", "memory":
-		cmd.cmd = cmdMemory
+	case "x":
+		cmd.cmd = cmdWord
+	case "i":
+		cmd.cmd = cmdInst
 	case "run":
 		cmd.cmd = cmdRun
+	case "rs", "restart":
+		cmd.cmd = cmdRestart
 	case "h", "help":
 		cmd.cmd = cmdHelp
 	case "q", "quit":
@@ -234,7 +294,7 @@ func scanCommand() (cmd Command) {
 
 	args := tokens[1:]
 	switch cmd.cmd {
-	case cmdMemory, cmdStep, cmdListSrc:
+	case cmdWord, cmdStep, cmdListSrc, cmdInst:
 		cmd.args = []int{}
 		for _, a := range args {
 			n, err := strconv.ParseInt(a, 0, 32)

@@ -19,17 +19,17 @@ const (
 	disasmMode
 	runMode
 	asmRunMode
-	stepRunMode
+	debugMode
 )
 
 var (
-	asmM     = flag.Bool("a", false, "Assemble")
-	disasmM  = flag.Bool("d", false, "Disassemble")
-	runM     = flag.Bool("r", false, "Run")
-	asmRunM  = flag.Bool("R", false, "Assemble and run")
-	stepRunM = flag.Bool("s", false, "Step run")
-	outFile  = flag.String("o", "a.out", "Output file")
-	logger   = log.New(os.Stderr, "", 0)
+	asmM    = flag.Bool("a", false, "Assemble")
+	disasmM = flag.Bool("d", false, "Disassemble")
+	runM    = flag.Bool("R", false, "Run")
+	asmRunM = flag.Bool("r", false, "Assemble and run")
+	debugM  = flag.Bool("g", false, "Debug mode")
+	outFile = flag.String("o", "a.out", "Output file")
+	logger  = log.New(os.Stderr, "", 0)
 )
 
 func main() {
@@ -44,8 +44,8 @@ func main() {
 		runFile(flag.Arg(0))
 	case asmRunMode:
 		asmAndRun(flag.Arg(0))
-	case stepRunMode:
-		stepRun(flag.Arg(0))
+	case debugMode:
+		debug(flag.Arg(0))
 	}
 }
 
@@ -122,15 +122,15 @@ func parseMode() Mode {
 	if *asmRunM {
 		mode |= asmRunMode
 	}
-	if *stepRunM {
-		mode |= stepRunMode
+	if *debugM {
+		mode |= debugMode
 	}
 	// If no flag is specified, enter assembler mode
 	if mode == noMode {
 		mode = asmMode
 	}
 	switch mode {
-	case asmMode, disasmMode, runMode, asmRunMode, stepRunMode:
+	case asmMode, disasmMode, runMode, asmRunMode, debugMode:
 		if flag.NArg() < 1 {
 			logger.Fatal("Please specify a file to process")
 		}
