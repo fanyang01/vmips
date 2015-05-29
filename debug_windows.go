@@ -1,18 +1,7 @@
 package main
 
-// +build linux darwin
-
-/*
-#cgo LDFLAGS: -lreadline -lhistory
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-*/
-import "C"
-
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -20,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/fanyang01/vmips/mips"
 )
@@ -49,7 +37,7 @@ run: Run to end
 rs, restart: Restart the program
 h, help: Show this help message
 q, quit: Quit`
-	welcomeMessage = "\033[1;33m" + `
+	welcomeMessage = `
  ________________________
 /                        \
 |      MIPS is fun!      |
@@ -61,13 +49,12 @@ q, quit: Quit`
                 ||----w |
                 ||     ||
 
-` + "\033[0m" + `For help, type "help".`
+` + `For help, type "help".`
 )
 
 var (
-	prompt     = C.CString("\033[1;36m(mips)\033[0m ")
-	maxHistory = C.int(50)
-	registers  = []string{
+	prompt    = "(mips) "
+	registers = []string{
 		"zero", "at",
 		"v0", "v1",
 		"a0", "a1", "a2", "a3",
@@ -95,7 +82,6 @@ func debug(filename string) {
 
 	var cache *Command
 
-	C.stifle_history(maxHistory)
 	fmt.Println(welcomeMessage)
 	for {
 		cmd := scanCommand()
@@ -260,18 +246,15 @@ func scanCommand() (cmd Command) {
 		}
 	}()
 
-	p := C.readline(prompt)
-	s := C.GoString(p)
-	if p != nil {
-		C.free(unsafe.Pointer(p))
-	}
+	r := bufio.NewReader(os.Stdin)
+	s, err := r.ReadString('\n')
+	checkErr(err)
 	s = strings.TrimSpace(s)
 	tokens := strings.Fields(s)
 	if len(tokens) == 0 {
 		cmd.cmd = cmdEmpty
 		return
 	}
-	C.add_history(C.CString(s))
 	switch tokens[0] {
 	case "l", "list":
 		cmd.cmd = cmdListSrc
