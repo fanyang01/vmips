@@ -1,9 +1,9 @@
-package main
-
 // +build linux darwin
 
+package main
+
 /*
-#cgo LDFLAGS: -lreadline -lhistory
+#cgo linux LDFLAGS: -lreadline -lhistory
 
 #include <stdio.h>
 #include <stdlib.h>
