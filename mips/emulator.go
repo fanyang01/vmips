@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // ExitStatus is the exit status of virtual machine
@@ -16,6 +17,7 @@ const (
 	EXIT_NORMAL ExitStatus = iota
 	EXIT_INT
 	EXIT_EOF
+	EXIT_TIMEOUT
 	EXIT_ERROR
 )
 
@@ -23,6 +25,7 @@ const (
 type Emulator struct {
 	machine *Machine
 	running bool
+	timer   *time.Timer
 	inst    chan execInst
 	next    chan int
 	exit    chan ExitStatus
@@ -45,6 +48,12 @@ func NewEmulator() *Emulator {
 		exit:    make(chan ExitStatus),
 		err:     make(chan error, 2),
 	}
+}
+
+func (e *Emulator) SetTimer(d time.Duration) {
+	e.timer = time.AfterFunc(d, func() {
+		e.exit <- EXIT_TIMEOUT
+	})
 }
 
 func (e *Emulator) LoadAndRun(raw []byte) error {
@@ -84,6 +93,8 @@ func (e *Emulator) Wait() error {
 			return <-e.err
 		case EXIT_NORMAL, EXIT_EOF:
 			return nil
+		case EXIT_TIMEOUT:
+			return errors.New("timeout")
 		default:
 			return nil
 		}
