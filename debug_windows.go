@@ -246,6 +246,7 @@ func scanCommand() (cmd Command) {
 		}
 	}()
 
+	fmt.Printf("%s", prompt)
 	r := bufio.NewReader(os.Stdin)
 	s, err := r.ReadString('\n')
 	checkErr(err)
