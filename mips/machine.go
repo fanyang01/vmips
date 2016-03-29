@@ -5,11 +5,11 @@ import "errors"
 type addrSeg int
 
 const (
-	TEXT_ADDRESS   = 0x8000000
-	DATA_ADDRESS   = 0x8100000
-	MAX_DATA_ADDR  = 0x8F00000
-	STACK_ADDRESS  = 0x7FFFFFFF
-	MIN_STACK_ADDR = 0x7F000000
+	TEXT_ADDRESS   = 0x0
+	DATA_ADDRESS   = 0x4000000
+	MAX_DATA_ADDR  = 0x8000000
+	STACK_ADDRESS  = 0x7F000000
+	MIN_STACK_ADDR = 0x7E000000
 	textSegment    = 1 << iota
 	dataSegment
 	stackSegment

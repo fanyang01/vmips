@@ -241,13 +241,13 @@ var (
 			typ:     "I",
 			syntax:  []argType{argReg, argReg, argInteger | argLabel},
 			formats: []fmtType{fmtRegS, fmtRegT, fmtImmediate},
-			opcode:  0x4,
+			opcode:  0x5,
 		},
 		"beq": instInfo{
 			typ:     "I",
 			syntax:  []argType{argReg, argReg, argInteger | argLabel},
 			formats: []fmtType{fmtRegS, fmtRegT, fmtImmediate},
-			opcode:  0x5,
+			opcode:  0x4,
 		},
 		// I3
 		"lw": instInfo{
